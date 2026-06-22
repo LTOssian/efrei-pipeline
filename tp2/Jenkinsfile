@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = 'six-seven-app'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Récupération du code source...'
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Construction de l\'application...'
+                sh '''
+                    echo "Building application..."
+                    # Simuler un build (remplacer par les vraies commandes)
+                    echo "Build terminé avec succès."
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Exécution des tests...'
+                sh '''
+                    echo "Running tests..."
+                    # Simuler des tests (remplacer par les vrais tests)
+                    echo "Tous les tests passent."
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Déploiement de l\'application...'
+                sh '''
+                    echo "Deploying application..."
+                    # Commande de déploiement (ex: SCP, kubectl, etc.)
+                    echo "Déploiement terminé avec succès."
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline terminée avec succès !'
+        }
+        failure {
+            echo 'La pipeline a échoué.'
+        }
+    }
+}
