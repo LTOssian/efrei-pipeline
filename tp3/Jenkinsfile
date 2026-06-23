@@ -5,9 +5,6 @@ pipeline {
         DOCKER_HUB_USER = 'ossian7'
         LANDING_IMAGE = "${DOCKER_HUB_USER}/landing"
         API_IMAGE = "${DOCKER_HUB_USER}/api"
-        EC2_HOST = '<IP_EC2>'
-        EC2_USER = 'ubuntu'
-        SSH_KEY = 'devops-key.pem'
     }
 
     stages {
@@ -43,11 +40,9 @@ pipeline {
         stage('Deploy Landing') {
             steps {
                 sh """
-                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "
-                        docker pull ${LANDING_IMAGE} &&
-                        docker rm -f landing 2>/dev/null; true &&
-                        docker run -d --name landing -p 80:80 ${LANDING_IMAGE}
-                    "
+                    docker pull ${LANDING_IMAGE} &&
+                    docker rm -f landing 2>/dev/null; true &&
+                    docker run -d --name landing -p 80:80 ${LANDING_IMAGE}
                 """
             }
         }
@@ -55,11 +50,9 @@ pipeline {
         stage('Deploy API') {
             steps {
                 sh """
-                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "
-                        docker pull ${API_IMAGE} &&
-                        docker rm -f api 2>/dev/null; true &&
-                        docker run -d --name api -p 3000:3000 ${API_IMAGE}
-                    "
+                    docker pull ${API_IMAGE} &&
+                    docker rm -f api 2>/dev/null; true &&
+                    docker run -d --name api -p 3000:3000 ${API_IMAGE}
                 """
             }
         }

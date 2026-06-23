@@ -2,6 +2,7 @@
 
 **Équipe** : ALIMOU DIALLO
 **DockerHub** : [ossian7](https://hub.docker.com/u/ossian7)
+**EC2** : t3.small — Ubuntu 22.04 — IP `13.36.210.49`
 
 ---
 
@@ -20,7 +21,7 @@ aws iam attach-user-policy --user-name devops-cli --policy-arn arn:aws:iam::aws:
 aws iam create-access-key --user-name devops-cli
 ```
 
-📸 **Screenshot** : la sortie de `create-access-key` avec AccessKeyId et SecretAccessKey
+📸 **Screenshot** : sortie de `create-access-key` avec AccessKeyId + SecretAccessKey
 
 ### 3. Configurer AWS CLI
 
@@ -28,7 +29,7 @@ aws iam create-access-key --user-name devops-cli
 aws configure
 # AWS Access Key ID : <coller>
 # AWS Secret Access Key : <coller>
-# Default region : eu-west-3 (Paris) ou eu-west-1 (Ireland)
+# Default region : eu-west-3 (Paris)
 # Default output : json
 ```
 
@@ -50,9 +51,9 @@ aws ec2 authorize-security-group-ingress --group-name devops-sg --protocol tcp -
 aws ec2 authorize-security-group-ingress --group-name devops-sg --protocol tcp --port 8080 --cidr 0.0.0.0/0
 ```
 
-📸 **Screenshot** : les inbound rules du Security Group
+📸 **Screenshot** : inbound rules du Security Group
 
-### 6. Lancer l'instance EC2 t2.micro
+### 6. Lancer l'instance EC2
 
 ```bash
 # Trouver l'AMI Ubuntu 22.04
@@ -60,12 +61,13 @@ aws ec2 describe-images --owners 099720109477 \
   --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
   --query 'Images[*].[ImageId,CreationDate]' --output text | sort -k2 -r | head -1
 
-# Lancer l'instance
+# Lancer l'instance (t3.small, 20 GB)
 aws ec2 run-instances \
   --image-id <AMI_ID> \
-  --instance-type t2.micro \
+  --instance-type t3.small \
   --key-name devops-key \
   --security-groups devops-sg \
+  --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":20}}]' \
   --count 1
 
 # Récupérer l'IP publique
@@ -79,39 +81,69 @@ aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress
 ```bash
 ssh -i devops-key.pem ubuntu@<IP_EC2>
 sudo apt update && sudo apt install -y docker.io
-sudo usermod -aG docker $USER
+sudo usermod -aG docker ubuntu
 exit
+# Reconnecter pour que le groupe docker prenne effet
+ssh -i devops-key.pem ubuntu@<IP_EC2>
 ```
 
 📸 **Screenshot** : `docker --version` dans le terminal SSH
 
-### 8. Construire et pousser les images Docker
+### 8. Lancer Jenkins sur l'EC2 (avec socket Docker)
 
 ```bash
-# Landing page
+ssh -i devops-key.pem ubuntu@<IP_EC2>
+
+# Donner accès au socket Docker
+sudo chmod 666 /var/run/docker.sock
+
+# Lancer Jenkins
+docker run -d \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  jenkins/jenkins:lts
+
+# Récupérer le mot de passe admin
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+- Accéder à `http://<IP_EC2>:8080`
+- Installer les plugins suggérés, créer un compte admin
+
+### 9. Construire et pousser les images Docker
+
+```bash
+# Sur l'EC2, cloner le repo
+git clone https://github.com/LTOssian/efrei-pipeline.git
+cd efrei-pipeline
+
+# Login DockerHub
+docker login -u ossian7
+
+# Build + Push
 docker build -t ossian7/landing tp3/landing
 docker push ossian7/landing
-
-# API
 docker build -t ossian7/api tp3/api
 docker push ossian7/api
 ```
 
 📸 **Screenshot** : `ossian7/landing` et `ossian7/api` sur DockerHub
 
-### 9. Configurer Jenkins
+### 10. Configurer la pipeline Jenkins
 
-- Dans Jenkins, créer un nouveau job Pipeline nommé `tp3-pipeline`
+- Dans Jenkins (`http://<IP_EC2>:8080`), **New Item** → `tp3-pipeline` → **Pipeline**
 - **Pipeline script from SCM** :
   - SCM : Git
   - Repository URL : `https://github.com/LTOssian/efrei-pipeline.git`
   - Script Path : `tp3/Jenkinsfile`
-- Modifier la variable `EC2_HOST` dans le Jenkinsfile avec l'IP de ton EC2
-- **Build Now**
+- **Save** → **Build Now**
 
 📸 **Screenshot** : les 6 stages verts dans Jenkins
 
-### 10. Vérifier le déploiement
+### 11. Vérifier le déploiement
 
 ```bash
 # Landing page
