@@ -1,17 +1,27 @@
 # TP2 — Pipeline CI/CD avec Jenkins
 
-## Étapes réalisées
+**Environnement** : VMware Fusion sur Mac M1 (Apple Silicon) — Ubuntu Server 24.04 ARM64
 
-### 1. Installation de VMWare
-- Télécharger et installer VMWare Workstation/Fusion
-- Créer une machine virtuelle pour l'environnement DevOps (Ubuntu Server recommandé)
+---
 
-### 2. Configuration de la VM
+## 1. Installation de VMWare
+
+- Télécharger et installer VMware Fusion Pro depuis le portail Broadcom
+- Créer une machine virtuelle Ubuntu Server 24.04 ARM64
+
+## 2. Configuration de la VM
+
 - Vérifier l'accès à internet : `ping google.com`
-- Vérifier l'adresse IP : `ip addr show` ou `ifconfig`
+- Vérifier l'adresse IP : `ip addr show`
+
+![Adresse IP de la VM](screens/ip%20addr%20show.png)
+
 - Réaliser un snapshot de la machine vierge
 
-### 3. Installation de Docker Engine
+![Snapshot VM vierge](screens/snapshots.png)
+
+## 3. Installation de Docker Engine
+
 ```bash
 sudo apt update
 sudo apt install -y docker.io
@@ -19,12 +29,23 @@ sudo systemctl enable docker --now
 sudo usermod -aG docker $USER
 ```
 
-### 4. Création du réseau Docker "devops"
+Vérification :
+
+```bash
+docker --version
+docker run hello-world
+```
+
+![Docker installé et hello-world](screens/docker%20installed%20and%20hello%20world.png)
+
+## 4. Création du réseau Docker "devops"
+
 ```bash
 docker network create devops
 ```
 
-### 5. Déploiement de Jenkins
+## 5. Déploiement de Jenkins
+
 ```bash
 docker run -d \
   --name jenkins \
@@ -35,17 +56,19 @@ docker run -d \
   jenkins/jenkins:lts
 ```
 
-### 6. Finalisation de l'installation Jenkins
+## 6. Finalisation de l'installation Jenkins
+
 - Récupérer le mot de passe initial :
   ```bash
   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
   ```
-- Accéder à `http://<IP_VM>:8080`
+- Accéder à `http://192.168.243.129:8080`
 - Suivre l'assistant d'installation (plugins suggérés)
 
-### 7. Pipeline "Hello World"
-- Créer un nouveau job Pipeline
-- Ajouter un script simple :
+## 7. Pipeline "Hello World"
+
+- Créer un nouveau job Pipeline nommé `hello-world`
+- Script :
   ```groovy
   pipeline {
       agent any
@@ -60,29 +83,46 @@ docker run -d \
   ```
 - Lancer la pipeline
 
-### 8. Pipeline CI/CD
-- Ajouter les étapes : Checkout → Build → Test → Deploy
-- Le `Jenkinsfile` de ce repo contient la pipeline complète
+## 8. Pipeline CI/CD
 
-### 9. Fork du repository
-- Forker ce repository sur GitHub
-- Ajouter le `Jenkinsfile` à la racine (ou dans `tp2/`)
+- Créer un job Pipeline nommé `pipeline-cicd`
+- Configurer **Pipeline script from SCM** :
+  - SCM : Git
+  - Repository URL : `https://github.com/LTOssian/efrei-pipeline.git`
+  - Script Path : `tp2/Jenkinsfile`
+- La pipeline contient 4 stages : Checkout → Build → Test → Deploy
 
-### 10. Agent Jenkins
-- Configurer un nouvel agent dans Jenkins (Manage Jenkins → Nodes)
-- Lancer une pipeline avec l'agent dédié
+![Liste des pipelines](screens/liste%20pipelines.png)
 
-### 11. Tunnel ngrok
+## 9. Agent Jenkins
+
+- **Manage Jenkins → Nodes → New Node**
+- Nom : `agent-1`, Permanent Agent
+- Remote root directory : `/home/louisan/jenkins-agent`
+- Launch method : Launch agent via SSH
+- Host : `192.168.243.129`
+
+![Agent connecté](screens/liste%20agents.png)
+
+## 10. Tunnel ngrok
+
 ```bash
-ngrok http 8080
+wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-arm64.tgz
+tar xzf ngrok-v3-stable-linux-arm64.tgz
+./ngrok config add-authtoken <TOKEN>
+./ngrok http 8080
 ```
-- Récupérer l'URL publique générée
-- Jenkins est accessible temporairement via cette URL
 
-### 12. Webhook GitHub → Jenkins
-- Dans GitHub : Settings → Webhooks → Add webhook
+![Tunnel ngrok](screens/tunnel%20ngrok%201.png)
+
+![ngrok interface web](screens/tunnel%20ngrok%202.png)
+
+## 11. Webhook GitHub → Jenkins
+
+- Dans GitHub : **Settings → Webhooks → Add webhook**
   - Payload URL : `https://<ngrok-url>/github-webhook/`
   - Content type : `application/json`
   - Events : Just the push event
-- Dans Jenkins : configurer le job pour utiliser "GitHub hook trigger for GITScm polling"
-- La pipeline se déclenche automatiquement à chaque push
+- Dans Jenkins, sur le job `pipeline-cicd` : cocher **"GitHub hook trigger for GITScm polling"**
+
+![Webhook configuré](screens/webhook%20OK.png)

@@ -17,3 +17,5 @@ Le fichier `index.html` est placé dans le répertoire `www/` du serveur Alwaysd
 ## Vérification
 
 Ouvrir [https://louisan.alwaysdata.net](https://louisan.alwaysdata.net) dans un navigateur. La page doit afficher **SIX SEVEN**.
+
+![Site déployé](screens/Capture%20d%E2%80%99e%CC%81cran%202026-06-23%20a%CC%80%2004.02.53.png)
