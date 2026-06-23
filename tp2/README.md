@@ -1,6 +1,6 @@
 # TP2 — Pipeline CI/CD avec Jenkins
 
-**Environnement** : VMware Fusion sur Mac M1 (Apple Silicon) — Ubuntu Server 24.04 ARM64
+**Environnement** : VMware Fusion sur Mac M1 (Apple Silicon) — Ubuntu Server 26.04 ARM64
 
 ---
 
