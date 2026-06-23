@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER = 'ossian7'
+        LANDING_IMAGE = "${DOCKER_HUB_USER}/landing"
+        API_IMAGE = "${DOCKER_HUB_USER}/api"
+        EC2_HOST = '<IP_EC2>'
+        EC2_USER = 'ubuntu'
+        SSH_KEY = 'devops-key.pem'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Landing') {
+            steps {
+                dir('tp3/landing') {
+                    sh "docker build -t ${LANDING_IMAGE} ."
+                }
+            }
+        }
+
+        stage('Build API') {
+            steps {
+                dir('tp3/api') {
+                    sh "docker build -t ${API_IMAGE} ."
+                }
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                sh "docker push ${LANDING_IMAGE}"
+                sh "docker push ${API_IMAGE}"
+            }
+        }
+
+        stage('Deploy Landing') {
+            steps {
+                sh """
+                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "
+                        docker pull ${LANDING_IMAGE} &&
+                        docker rm -f landing 2>/dev/null; true &&
+                        docker run -d --name landing -p 80:80 ${LANDING_IMAGE}
+                    "
+                """
+            }
+        }
+
+        stage('Deploy API') {
+            steps {
+                sh """
+                    ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "
+                        docker pull ${API_IMAGE} &&
+                        docker rm -f api 2>/dev/null; true &&
+                        docker run -d --name api -p 3000:3000 ${API_IMAGE}
+                    "
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'TP3 pipeline completed successfully!'
+        }
+        failure {
+            echo 'TP3 pipeline failed.'
+        }
+    }
+}
